@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   FaBars,
@@ -42,6 +42,8 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   const links = user?.role === "admin" ? adminLinks : voterLinks;
   const isAdmin = user?.role === "admin";
@@ -58,25 +60,44 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     setSidebarOpen(false);
+    setProfileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setSidebarOpen(false);
+      if (event.key === "Escape") {
+        setSidebarOpen(false);
+        setProfileMenuOpen(false);
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      window.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white text-black dark:bg-[#0b1220] dark:text-slate-100">
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-black/10 bg-white transition-transform duration-200 dark:border-slate-700 dark:bg-[#111b2d] ${
+        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-72 border-r border-black/10 bg-white transition-transform duration-200 dark:border-slate-700 dark:bg-[#111b2d] ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
       >
-        <div className="flex h-screen flex-col">
+        <div className="flex h-[100dvh] flex-col">
           <div className="border-b border-black/10 p-5 dark:border-slate-700">
             <div className="flex items-start justify-between gap-3">
               <Link to={home} className="flex items-center gap-3">
@@ -101,7 +122,7 @@ export default function Layout({ children }) {
             </div>
           </div>
 
-          <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+          <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
             {links.map(({ label, path, icon: Icon }) => (
               <NavLink
                 key={path}
@@ -120,7 +141,7 @@ export default function Layout({ children }) {
             ))}
           </nav>
 
-          <div className="border-t border-black/10 p-4 dark:border-slate-700">
+          <div className="shrink-0 border-t border-black/10 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] dark:border-slate-700">
             <button
               type="button"
               className="btn-secondary w-full"
@@ -147,8 +168,8 @@ export default function Layout({ children }) {
 
       <div className="min-h-screen lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-black/10 bg-white/95 backdrop-blur dark:border-slate-700 dark:bg-[#111b2d]/95">
-          <div className="page-wrap flex items-center justify-between !py-3">
-            <div className="flex items-center gap-3">
+          <div className="page-wrap flex items-center justify-between gap-2 !py-3 sm:gap-3">
+            <div className="min-w-0 flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 aria-label="Open sidebar"
@@ -157,15 +178,15 @@ export default function Layout({ children }) {
               >
                 <FaBars />
               </button>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-slate-400">
+              <div className="min-w-0">
+                <p className="hidden text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-slate-400 sm:block">
                   {isAdmin ? "Administration" : "Voting"}
                 </p>
-                <p className="text-base font-bold text-brand-primary dark:text-brand-secondary">Control Panel</p>
+                <p className="truncate text-base font-bold text-brand-primary dark:text-brand-secondary">Control Panel</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 aria-label="Toggle theme"
@@ -175,18 +196,32 @@ export default function Layout({ children }) {
                 {theme === "dark" ? <FaSun /> : <FaMoon />}
               </button>
 
-              <div className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 dark:border-slate-600 dark:bg-[#0f1a2d]">
-                {user?.profileImage ? (
-                  <img src={user.profileImage} alt={displayName} className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary text-sm font-bold text-white">
-                    {initials || "U"}
-                  </span>
+              <div ref={profileMenuRef} className="relative">
+                <button
+                  type="button"
+                  aria-label="Open profile menu"
+                  aria-expanded={profileMenuOpen}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white dark:border-slate-600 dark:bg-[#0f1a2d]"
+                  onClick={() => setProfileMenuOpen((open) => !open)}
+                >
+                  {user?.profileImage ? (
+                    <img src={user.profileImage} alt={displayName} className="h-9 w-9 rounded-full object-cover" />
+                  ) : (
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-sm font-bold text-white">
+                      {initials || "U"}
+                    </span>
+                  )}
+                </button>
+
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-soft dark:border-slate-600 dark:bg-[#0f1a2d]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-slate-400">
+                      {isAdmin ? "Admin Account" : "Voter Account"}
+                    </p>
+                    <p className="mt-2 text-sm font-bold text-brand-primary dark:text-brand-secondary">{displayName}</p>
+                    <p className="mt-1 break-all text-xs text-black/65 dark:text-slate-300">{user?.email || "system@local"}</p>
+                  </div>
                 )}
-                <div className="leading-tight">
-                  <p className="text-sm font-bold text-brand-primary dark:text-brand-secondary">{displayName}</p>
-                  <p className="text-xs text-black/60 dark:text-slate-300">{user?.email || "system@local"}</p>
-                </div>
               </div>
             </div>
           </div>
