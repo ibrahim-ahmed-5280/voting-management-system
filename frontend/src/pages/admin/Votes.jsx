@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { FaFileExcel, FaFilter, FaTrashAlt } from "react-icons/fa";
 import api from "../../api/client";
+import { ConfirmModal } from "../../components/Modal";
 import { formatDate } from "../../utils/formatters";
 
 export default function Votes() {
   const [votes, setVotes] = useState([]);
   const [elections, setElections] = useState([]);
   const [filters, setFilters] = useState({ election: "", from: "", to: "", search: "" });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
@@ -25,11 +28,23 @@ export default function Votes() {
 
   const filteredCount = useMemo(() => votes.length, [votes]);
 
-  const onDelete = async (id) => {
-    if (!window.confirm("Delete vote record?")) return;
-    await api.delete(`/api/votes/${id}`);
-    toast.success("Vote deleted");
-    load();
+  const onDelete = (vote) => {
+    setDeleteTarget(vote);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/votes/${deleteTarget._id}`);
+      toast.success("Vote deleted");
+      setDeleteTarget(null);
+      load();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete vote");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const download = async () => {
@@ -98,7 +113,11 @@ export default function Votes() {
                   <td>{formatDate(vote.votedAt)}</td>
                   <td title={vote.ipAddress}>{vote.ipAddress || "-"}</td>
                   <td>
-                    <button className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 hover:underline" onClick={() => onDelete(vote._id)}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 hover:underline"
+                      onClick={() => onDelete(vote)}
+                    >
                       <FaTrashAlt />
                       Delete
                     </button>
@@ -109,6 +128,16 @@ export default function Votes() {
           </table>
         </div>
       </section>
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        title="Delete Vote"
+        message="Are you sure you want to delete this vote record? This action cannot be undone."
+        confirmText="Delete Vote"
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { FaEdit, FaPlus, FaTable, FaThLarge, FaTrashAlt } from "react-icons/fa";
 import api from "../../api/client";
 import CandidateCard from "../../components/Cards/CandidateCard";
+import { ConfirmModal, Modal } from "../../components/Modal";
 
 const empty = { name: "", election: "", description: "", photo: null };
 
@@ -11,6 +12,11 @@ export default function Candidates() {
   const [elections, setElections] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState(empty);
+  const [savingCreate, setSavingCreate] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("cards");
 
@@ -37,8 +43,9 @@ export default function Candidates() {
     );
   }, [candidates, search]);
 
-  const submit = async (e) => {
+  const submitCreate = async (e) => {
     e.preventDefault();
+    setSavingCreate(true);
     const fd = new FormData();
     fd.append("name", form.name);
     fd.append("election", form.election);
@@ -46,24 +53,48 @@ export default function Candidates() {
     if (form.photo) fd.append("photo", form.photo);
 
     try {
-      if (editId) {
-        await api.put(`/api/candidates/${editId}`, fd);
-        toast.success("Candidate updated");
-      } else {
-        await api.post("/api/candidates", fd);
-        toast.success("Candidate created");
-      }
+      await api.post("/api/candidates", fd);
+      toast.success("Candidate created");
       setForm(empty);
-      setEditId(null);
       load();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to save candidate");
+      toast.error(error.response?.data?.message || "Failed to create candidate");
+    } finally {
+      setSavingCreate(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setEditId(null);
+    setEditForm(empty);
+  };
+
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    if (!editId) return;
+    setSavingEdit(true);
+
+    const fd = new FormData();
+    fd.append("name", editForm.name);
+    fd.append("election", editForm.election);
+    fd.append("description", editForm.description);
+    if (editForm.photo) fd.append("photo", editForm.photo);
+
+    try {
+      await api.put(`/api/candidates/${editId}`, fd);
+      toast.success("Candidate updated");
+      closeEditModal();
+      load();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update candidate");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
   const onEdit = (candidate) => {
     setEditId(candidate._id);
-    setForm({
+    setEditForm({
       name: candidate.name,
       election: candidate.election?._id || "",
       description: candidate.description,
@@ -71,19 +102,31 @@ export default function Candidates() {
     });
   };
 
-  const onDelete = async (candidate) => {
-    if (!window.confirm(`Delete ${candidate.name}?`)) return;
-    await api.delete(`/api/candidates/${candidate._id}`);
-    toast.success("Candidate deleted");
-    load();
+  const onDelete = (candidate) => {
+    setDeleteTarget(candidate);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/candidates/${deleteTarget._id}`);
+      toast.success("Candidate deleted");
+      setDeleteTarget(null);
+      load();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete candidate");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <div className="page-wrap space-y-6">
       <h1 className="text-2xl font-extrabold">Candidates Management</h1>
 
-      <form onSubmit={submit} className="glass grid gap-3 rounded-xl p-4 md:grid-cols-2">
-        <h2 className="md:col-span-2 text-lg font-bold">{editId ? "Edit Candidate" : "Add Candidate"}</h2>
+      <form onSubmit={submitCreate} className="glass grid gap-3 rounded-xl p-4 md:grid-cols-2">
+        <h2 className="md:col-span-2 text-lg font-bold">Add Candidate</h2>
         <div>
           <label className="field-label">Candidate Name</label>
           <input className="input" required placeholder="Candidate name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -108,15 +151,10 @@ export default function Candidates() {
           <textarea className="input" rows={3} required placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="md:col-span-2 flex justify-end gap-2">
-          <button className="btn-primary" type="submit">
-            {editId ? <FaEdit /> : <FaPlus />}
-            {editId ? "Update Candidate" : "Create Candidate"}
+          <button className="btn-primary" type="submit" disabled={savingCreate}>
+            {savingCreate ? null : <FaPlus />}
+            {savingCreate ? "Saving..." : "Create Candidate"}
           </button>
-          {editId && (
-            <button type="button" className="btn border border-slate-300" onClick={() => { setEditId(null); setForm(empty); }}>
-              Cancel
-            </button>
-          )}
         </div>
       </form>
 
@@ -227,6 +265,57 @@ export default function Candidates() {
           </section>
         )}
       </section>
+
+      <Modal open={Boolean(editId)} onClose={closeEditModal} title="Edit Candidate">
+        <form onSubmit={submitEdit} className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="field-label">Candidate Name</label>
+            <input className="input" required placeholder="Candidate name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </div>
+          <div>
+            <label className="field-label">Election</label>
+            <select className="input" required value={editForm.election} onChange={(e) => setEditForm({ ...editForm, election: e.target.value })}>
+              <option value="">Select election</option>
+              {elections.map((election) => (
+                <option key={election._id} value={election._id}>
+                  {election.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="field-label">Photo</label>
+            <input className="input" type="file" accept="image/*" onChange={(e) => setEditForm({ ...editForm, photo: e.target.files?.[0] || null })} />
+          </div>
+          <div className="md:col-span-2">
+            <label className="field-label">Description</label>
+            <textarea className="input" rows={3} required placeholder="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+          </div>
+          <div className="md:col-span-2 mt-1 flex justify-end gap-2">
+            <button type="button" className="btn border border-slate-300" onClick={closeEditModal}>
+              Cancel
+            </button>
+            <button className="btn-primary" type="submit" disabled={savingEdit}>
+              {savingEdit ? null : <FaEdit />}
+              {savingEdit ? "Saving..." : "Update Candidate"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        title="Delete Candidate"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.`
+            : "Are you sure you want to delete this candidate?"
+        }
+        confirmText="Delete Candidate"
+      />
     </div>
   );
 }
