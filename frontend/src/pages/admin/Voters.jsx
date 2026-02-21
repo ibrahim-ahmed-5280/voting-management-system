@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   FaDownload,
@@ -21,8 +21,10 @@ export default function Voters() {
   const [single, setSingle] = useState({ name: "", email: "", phone: "", assignedElections: [] });
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkAssignedElections, setBulkAssignedElections] = useState([]);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [confirmAction, setConfirmAction] = useState({ type: null, target: null });
   const [deleting, setDeleting] = useState(false);
+  const selectAllRef = useRef(null);
 
   const load = async () => {
     const [vRes, eRes] = await Promise.all([api.get("/api/voter"), api.get("/api/elections")]);
@@ -43,6 +45,20 @@ export default function Voters() {
       return (v.assignedElections || []).some((election) => election._id === electionFilter);
     });
   }, [voters, search, electionFilter]);
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const filteredIds = useMemo(() => filtered.map((voter) => voter._id), [filtered]);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIdSet.has(id));
+  const someFilteredSelected = filteredIds.some((id) => selectedIdSet.has(id));
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate = someFilteredSelected && !allFilteredSelected;
+  }, [someFilteredSelected, allFilteredSelected]);
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => voters.some((voter) => voter._id === id)));
+  }, [voters]);
 
   const submitSingle = async (e) => {
     e.preventDefault();
@@ -79,18 +95,81 @@ export default function Voters() {
     }
   };
 
+  const toggleSelectOne = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllFiltered = () => {
+    if (!filteredIds.length) return;
+    const filteredSet = new Set(filteredIds);
+
+    setSelectedIds((prev) => {
+      const hasAll = filteredIds.every((id) => prev.includes(id));
+      if (hasAll) {
+        return prev.filter((id) => !filteredSet.has(id));
+      }
+
+      const merged = new Set(prev);
+      filteredIds.forEach((id) => merged.add(id));
+      return Array.from(merged);
+    });
+  };
+
   const onDelete = (voter) => {
-    setDeleteTarget(voter);
+    setConfirmAction({ type: "single", target: voter });
+  };
+
+  const onDeleteSelected = () => {
+    if (!selectedIds.length) return;
+    setConfirmAction({ type: "selected", target: null });
+  };
+
+  const onDeleteAll = () => {
+    if (!voters.length) return;
+    setConfirmAction({ type: "all", target: null });
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!confirmAction.type) return;
+
+    let ids = [];
+    if (confirmAction.type === "single" && confirmAction.target?._id) {
+      ids = [confirmAction.target._id];
+    } else if (confirmAction.type === "selected") {
+      ids = [...selectedIds];
+    } else if (confirmAction.type === "all") {
+      ids = voters.map((voter) => voter._id);
+    }
+
+    if (!ids.length) {
+      setConfirmAction({ type: null, target: null });
+      return;
+    }
+
     setDeleting(true);
     try {
-      await api.delete(`/api/voter/${deleteTarget._id}`);
-      toast.success("Deleted");
-      setDeleteTarget(null);
-      load();
+      const results = await Promise.allSettled(ids.map((id) => api.delete(`/api/voter/${id}`)));
+      const deletedCount = results.filter((result) => result.status === "fulfilled").length;
+      const failedCount = results.length - deletedCount;
+
+      if (deletedCount) {
+        toast.success(
+          deletedCount === 1 ? "Voter deleted" : `${deletedCount} voters deleted`
+        );
+      }
+      if (failedCount) {
+        toast.error(`${failedCount} delete request(s) failed`);
+      }
+
+      if (confirmAction.type === "all") {
+        setSelectedIds([]);
+      } else {
+        const removedSet = new Set(ids);
+        setSelectedIds((prev) => prev.filter((id) => !removedSet.has(id)));
+      }
+
+      setConfirmAction({ type: null, target: null });
+      await load();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete voter");
     } finally {
@@ -205,21 +284,51 @@ export default function Voters() {
           <input className="input max-w-md" placeholder="Search voters..." value={search} onChange={(e) => setSearch(e.target.value)} />
           <select className="input max-w-xs" value={electionFilter} onChange={(e) => setElectionFilter(e.target.value)}>
             <option value="all">All Elections</option>
-            {elections.map((election) => (
-              <option key={election._id} value={election._id}>
-                {election.name} ({election.status})
-              </option>
-            ))}
-          </select>
-          <button className="btn border border-slate-300" onClick={exportCSV}>
-            <FaFileCsv />
-            Export CSV
-          </button>
+              {elections.map((election) => (
+                <option key={election._id} value={election._id}>
+                  {election.name} ({election.status})
+                </option>
+              ))}
+            </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="btn border border-slate-300" onClick={exportCSV} type="button">
+              <FaFileCsv />
+              Export CSV
+            </button>
+            <button
+              className="btn border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+              onClick={onDeleteSelected}
+              type="button"
+              disabled={!selectedIds.length}
+            >
+              <FaTrashAlt />
+              Delete Selected ({selectedIds.length})
+            </button>
+            <button
+              className="btn bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={onDeleteAll}
+              type="button"
+              disabled={!voters.length}
+            >
+              <FaTrashAlt />
+              Delete All
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="text-left text-slate-500">
+                <th className="w-10">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    className="h-4 w-4 accent-brand-primary"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="Select all visible voters"
+                  />
+                </th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -230,6 +339,15 @@ export default function Voters() {
             <tbody>
               {filtered.map((voter) => (
                 <tr key={voter._id} className="border-t border-slate-200">
+                  <td className="py-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-brand-primary"
+                      checked={selectedIdSet.has(voter._id)}
+                      onChange={() => toggleSelectOne(voter._id)}
+                      aria-label={`Select ${voter.name}`}
+                    />
+                  </td>
                   <td className="py-2">{voter.name}</td>
                   <td>{voter.email}</td>
                   <td>{voter.phone}</td>
@@ -246,23 +364,46 @@ export default function Voters() {
                   </td>
                 </tr>
               ))}
+              {!filtered.length && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                    No voters found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
       <ConfirmModal
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
+        open={Boolean(confirmAction.type)}
+        onClose={() => setConfirmAction({ type: null, target: null })}
         onConfirm={confirmDelete}
         loading={deleting}
-        title="Delete Voter"
+        title={
+          confirmAction.type === "selected"
+            ? "Delete Selected Voters"
+            : confirmAction.type === "all"
+            ? "Delete All Voters"
+            : "Delete Voter"
+        }
         message={
-          deleteTarget
-            ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.`
+          confirmAction.type === "selected"
+            ? `Are you sure you want to delete ${selectedIds.length} selected voter(s)? This action cannot be undone.`
+            : confirmAction.type === "all"
+            ? `Are you sure you want to delete all ${voters.length} voter(s)? This action cannot be undone.`
+            : confirmAction.target
+            ? `Are you sure you want to delete "${confirmAction.target.name}"? This action cannot be undone.`
             : "Are you sure you want to delete this voter?"
         }
-        confirmText="Delete Voter"
+        confirmText={
+          confirmAction.type === "selected"
+            ? "Delete Selected"
+            : confirmAction.type === "all"
+            ? "Delete All"
+            : "Delete Voter"
+        }
       />
     </div>
   );
