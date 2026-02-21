@@ -6,7 +6,11 @@ export default function CandidateCard({ candidate, onEdit, onDelete, onSelect, s
   return (
     <motion.div
       {...cardHover}
-      className={`glass rounded-xl p-4 ${selected ? "ring-2 ring-brand-primary" : ""}`}
+      className={`glass rounded-xl p-4 transition ${
+        selected
+          ? "border-brand-primary ring-2 ring-brand-primary bg-brand-primary/5 dark:border-white dark:ring-white dark:bg-white/10"
+          : ""
+      }`}
       onClick={() => onSelect?.(candidate)}
     >
       <div className="mb-3 flex items-center gap-3">
@@ -17,12 +21,12 @@ export default function CandidateCard({ candidate, onEdit, onDelete, onSelect, s
         />
         <div>
           <h4 className="font-semibold">{candidate.name}</h4>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-300">
             Votes: <span className="font-semibold">{candidate.votes}</span>
           </p>
         </div>
       </div>
-      <p className="line-clamp-2 text-sm text-slate-600">{candidate.description}</p>
+      <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{candidate.description}</p>
       {(onEdit || onDelete) && (
         <div className="mt-3 flex gap-2">
           {onEdit && (
