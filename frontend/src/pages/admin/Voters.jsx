@@ -17,7 +17,7 @@ export default function Voters() {
   const [elections, setElections] = useState([]);
   const [search, setSearch] = useState("");
   const [electionFilter, setElectionFilter] = useState("all");
-  const [single, setSingle] = useState({ idno: "", name: "", email: "", phone: "", assignedElections: [] });
+  const [single, setSingle] = useState({ name: "", email: "", phone: "", assignedElections: [] });
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkAssignedElections, setBulkAssignedElections] = useState([]);
 
@@ -34,7 +34,7 @@ export default function Voters() {
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
     return voters.filter((v) => {
-      const matchesSearch = [v.idno, v.name, v.email].join(" ").toLowerCase().includes(s);
+      const matchesSearch = [v.name, v.email].join(" ").toLowerCase().includes(s);
       if (!matchesSearch) return false;
       if (electionFilter === "all") return true;
       return (v.assignedElections || []).some((election) => election._id === electionFilter);
@@ -46,7 +46,7 @@ export default function Voters() {
     try {
       await api.post("/api/voter", single);
       toast.success("Voter created");
-      setSingle({ idno: "", name: "", email: "", phone: "", assignedElections: [] });
+      setSingle({ name: "", email: "", phone: "", assignedElections: [] });
       load();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to create voter");
@@ -84,8 +84,8 @@ export default function Voters() {
   };
 
   const exportCSV = () => {
-    const header = "ID No,Name,Email,Phone\n";
-    const rows = voters.map((v) => `${v.idno},${v.name},${v.email},${v.phone}`).join("\n");
+    const header = "Name,Email,Phone\n";
+    const rows = voters.map((v) => `${v.name},${v.email},${v.phone}`).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -113,10 +113,6 @@ export default function Voters() {
       {tab === "single" ? (
         <form onSubmit={submitSingle} className="glass grid gap-3 rounded-xl p-4 md:grid-cols-2">
           <div>
-            <label className="field-label">ID No</label>
-            <input className="input" placeholder="ID No" required value={single.idno} onChange={(e) => setSingle({ ...single, idno: e.target.value })} />
-          </div>
-          <div>
             <label className="field-label">Name</label>
             <input className="input" placeholder="Name" required value={single.name} onChange={(e) => setSingle({ ...single, name: e.target.value })} />
           </div>
@@ -128,7 +124,7 @@ export default function Voters() {
             <label className="field-label">Phone</label>
             <input className="input" placeholder="Phone" required value={single.phone} onChange={(e) => setSingle({ ...single, phone: e.target.value })} />
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="field-label">Assign Election</label>
             <select
               className="input"
@@ -158,7 +154,7 @@ export default function Voters() {
             <FaDownload />
             Download Template
           </a>
-          <p className="text-sm text-slate-500">Template columns: <strong>idno, name, email, phone</strong></p>
+          <p className="text-sm text-slate-500">Template columns: <strong>name, email, phone</strong></p>
           <div>
             <label className="field-label">Assign Election</label>
             <select
@@ -209,7 +205,6 @@ export default function Voters() {
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="text-left text-slate-500">
-                <th>ID No</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -220,8 +215,7 @@ export default function Voters() {
             <tbody>
               {filtered.map((voter) => (
                 <tr key={voter._id} className="border-t border-slate-200">
-                  <td className="py-2 font-mono">{voter.idno}</td>
-                  <td>{voter.name}</td>
+                  <td className="py-2">{voter.name}</td>
                   <td>{voter.email}</td>
                   <td>{voter.phone}</td>
                   <td>{(voter.assignedElections || []).map((e) => e.name).join(", ") || "-"}</td>

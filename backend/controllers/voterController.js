@@ -39,7 +39,6 @@ const getVoters = async (req, res, next) => {
     const query = {};
     if (search) {
       query.$or = [
-        { idno: { $regex: search, $options: "i" } },
         { name: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } }
       ];
@@ -57,15 +56,15 @@ const createVoter = async (req, res, next) => {
   try {
     if (!handleValidation(req, res)) return;
 
-    const { idno, name, email, phone } = req.body;
+    const { name, email, phone } = req.body;
     const assigned = normalizeAssigned(req.body.assignedElections);
-    const exists = await Voter.findOne({ idno: idno.trim() });
-    if (exists) return res.status(409).json({ message: "Voter with this ID exists" });
+    const normalizedEmail = email.toLowerCase().trim();
+    const exists = await Voter.findOne({ email: normalizedEmail });
+    if (exists) return res.status(409).json({ message: "Voter with this email already exists" });
 
     const voter = await Voter.create({
-      idno: idno.trim(),
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       phone: phone.trim(),
       role: "voter",
       assignedElections: assigned
@@ -104,21 +103,20 @@ const bulkImportVoters = async (req, res, next) => {
 
     for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i];
-      const idno = getCellValue(row, ["idno", "ID", "IdNo", "ID No", "id no", "IDNO"]);
       const name = getCellValue(row, ["name", "Name"]);
       const email = getCellValue(row, ["email", "Email"]).toLowerCase();
       const phone = getCellValue(row, ["phone", "Phone"]);
 
-      if (!idno || !name || !email || !phone) {
+      if (!name || !email || !phone) {
         report.skipped += 1;
-        report.errors.push({ row: i + 2, message: "Missing required fields: idno, name, email, phone" });
+        report.errors.push({ row: i + 2, message: "Missing required fields: name, email, phone" });
         continue;
       }
 
-      const exists = await Voter.findOne({ idno });
+      const exists = await Voter.findOne({ email });
       if (exists) {
         await Voter.findByIdAndUpdate(exists._id, {
-          $set: { role: "voter" },
+          $set: { name, phone, role: "voter" },
           $addToSet: { assignedElections: { $each: validElectionIds } }
         });
         report.updated += 1;
@@ -126,7 +124,6 @@ const bulkImportVoters = async (req, res, next) => {
       }
 
       await Voter.create({
-        idno,
         name,
         email,
         phone,
@@ -149,12 +146,16 @@ const updateVoter = async (req, res, next) => {
     const voter = await Voter.findById(req.params.id);
     if (!voter) return res.status(404).json({ message: "Voter not found" });
 
-    const { idno, name, email, phone } = req.body;
+    const { name, email, phone } = req.body;
     const assigned = normalizeAssigned(req.body.assignedElections);
 
-    if (idno) voter.idno = idno.trim();
     if (name) voter.name = name.trim();
-    if (email) voter.email = email.toLowerCase().trim();
+    if (email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const exists = await Voter.findOne({ email: normalizedEmail, _id: { $ne: voter._id } });
+      if (exists) return res.status(409).json({ message: "Voter with this email already exists" });
+      voter.email = normalizedEmail;
+    }
     if (phone) voter.phone = phone.trim();
     if (req.body.assignedElections !== undefined) voter.assignedElections = assigned;
 
@@ -234,13 +235,11 @@ const downloadVoterTemplate = async (_req, res, next) => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Voters");
     sheet.columns = [
-      { header: "idno", key: "idno", width: 18 },
       { header: "name", key: "name", width: 24 },
       { header: "email", key: "email", width: 30 },
       { header: "phone", key: "phone", width: 18 }
     ];
     sheet.addRow({
-      idno: "VOTER001",
       name: "John Doe",
       email: "john@example.com",
       phone: "1234567890"

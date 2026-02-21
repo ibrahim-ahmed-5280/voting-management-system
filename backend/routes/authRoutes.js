@@ -11,7 +11,7 @@ router.post(
 );
 router.post(
   "/voter/login",
-  [body("idno").notEmpty(), body("email").isEmail()],
+  [body("email").isEmail()],
   voterLogin
 );
 router.post("/logout", logout);

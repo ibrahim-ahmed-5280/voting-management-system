@@ -46,11 +46,14 @@ const adminLogin = async (req, res, next) => {
 const voterLogin = async (req, res, next) => {
   try {
     if (!handleValidation(req, res)) return;
-    const { idno, email } = req.body;
-    const normalizedId = String(idno || "").trim();
+    const { email } = req.body;
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    const voter = await Voter.findOne({ idno: normalizedId, email: normalizedEmail });
-    if (!voter) return res.status(401).json({ message: "Invalid voter credentials" });
+    const matchedVoters = await Voter.find({ email: normalizedEmail }).limit(2);
+    if (!matchedVoters.length) return res.status(401).json({ message: "Invalid voter credentials" });
+    if (matchedVoters.length > 1) {
+      return res.status(409).json({ message: "Duplicate voter email detected. Please contact administrator." });
+    }
+    const voter = matchedVoters[0];
 
     const sessionToken = uuidv4();
     voter.activeSession = sessionToken;
@@ -63,7 +66,7 @@ const voterLogin = async (req, res, next) => {
 
     res.json({
       message: "Voter login successful",
-      user: { id: voter._id, idno: voter.idno, name: voter.name, email: voter.email, role: voter.role }
+      user: { id: voter._id, name: voter.name, email: voter.email, role: voter.role }
     });
   } catch (error) {
     next(error);
@@ -120,7 +123,7 @@ const status = async (req, res, next) => {
     }
     return res.json({
       authenticated: true,
-      user: { id: voter._id, idno: voter.idno, name: voter.name, email: voter.email, role: voter.role }
+      user: { id: voter._id, name: voter.name, email: voter.email, role: voter.role }
     });
   } catch (error) {
     next(error);

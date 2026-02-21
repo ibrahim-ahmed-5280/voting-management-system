@@ -18,7 +18,7 @@ const getVotes = async (req, res, next) => {
     }
 
     let votes = await Vote.find(query)
-      .populate("voter", "idno name email")
+      .populate("voter", "name email")
       .populate("election", "name")
       .populate("candidate", "name")
       .sort({ votedAt: -1 });
@@ -26,9 +26,9 @@ const getVotes = async (req, res, next) => {
     if (search) {
       const s = search.toLowerCase();
       votes = votes.filter((v) => {
-        const idno = v.voter?.idno?.toLowerCase() || "";
         const name = v.voter?.name?.toLowerCase() || "";
-        return idno.includes(s) || name.includes(s);
+        const email = v.voter?.email?.toLowerCase() || "";
+        return name.includes(s) || email.includes(s);
       });
     }
 
@@ -109,7 +109,7 @@ const deleteVote = async (req, res, next) => {
 const downloadVotes = async (req, res, next) => {
   try {
     const votes = await Vote.find()
-      .populate("voter", "idno name email")
+      .populate("voter", "name email")
       .populate("election", "name")
       .populate("candidate", "name")
       .sort({ votedAt: -1 });

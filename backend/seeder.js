@@ -12,7 +12,6 @@ async function seed() {
 
   const adminEmail = "admin@ems.com";
   const adminPassword = "admin123";
-  const voterId = "VOTER001";
   const voterEmail = "voter@ems.com";
 
   const adminHash = await bcrypt.hash(adminPassword, 10);
@@ -64,7 +63,7 @@ async function seed() {
   await election.save();
 
   const voter = await Voter.findOneAndUpdate(
-    { idno: voterId },
+    { email: voterEmail },
     {
       $set: {
         name: "Demo Voter",
@@ -85,7 +84,6 @@ async function seed() {
   console.log(`- Email: ${adminEmail}`);
   console.log(`- Password: ${adminPassword}`);
   console.log("Voter login:");
-  console.log(`- ID No: ${voterId}`);
   console.log(`- Email: ${voterEmail}`);
   process.exit(0);
 }

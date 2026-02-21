@@ -20,7 +20,7 @@ router.post(
   "/",
   ensureAuthenticated,
   ensureAdmin,
-  [body("idno").notEmpty(), body("name").notEmpty(), body("email").isEmail(), body("phone").notEmpty()],
+  [body("name").notEmpty(), body("email").isEmail(), body("phone").notEmpty()],
   createVoter
 );
 router.post("/bulk", ensureAuthenticated, ensureAdmin, excelUpload.single("file"), bulkImportVoters);

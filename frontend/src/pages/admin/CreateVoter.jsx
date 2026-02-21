@@ -5,7 +5,7 @@ import api from "../../api/client";
 
 export default function CreateVoter() {
   const [elections, setElections] = useState([]);
-  const [form, setForm] = useState({ idno: "", name: "", email: "", phone: "", assignedElections: [] });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", assignedElections: [] });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,10 +28,6 @@ export default function CreateVoter() {
       <form onSubmit={submit} className="glass mx-auto grid max-w-3xl gap-3 rounded-xl p-6">
         <h1 className="text-2xl font-extrabold">Create Voter</h1>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="field-label">ID No</label>
-            <input className="input" placeholder="ID No" required value={form.idno} onChange={(e) => setForm({ ...form, idno: e.target.value })} />
-          </div>
           <div>
             <label className="field-label">Name</label>
             <input className="input" placeholder="Name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

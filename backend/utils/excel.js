@@ -12,7 +12,7 @@ const buildVotesWorkbook = async (votes) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Votes");
   sheet.columns = [
-    { header: "Voter ID", key: "idno", width: 16 },
+    { header: "Voter Email", key: "voterEmail", width: 30 },
     { header: "Voter Name", key: "voterName", width: 26 },
     { header: "Election", key: "electionName", width: 26 },
     { header: "Candidate", key: "candidateName", width: 26 },
@@ -22,7 +22,7 @@ const buildVotesWorkbook = async (votes) => {
 
   votes.forEach((vote) => {
     sheet.addRow({
-      idno: vote.voter?.idno || "",
+      voterEmail: vote.voter?.email || "",
       voterName: vote.voter?.name || "",
       electionName: vote.election?.name || "",
       candidateName: vote.candidate?.name || "",

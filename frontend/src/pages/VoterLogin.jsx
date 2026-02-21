@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import useAuth from "../hooks/useAuth";
 
 export default function VoterLogin() {
-  const [form, setForm] = useState({ idno: "", email: "" });
+  const [form, setForm] = useState({ email: "" });
   const [loading, setLoading] = useState(false);
   const { voterLogin } = useAuth();
   const navigate = useNavigate();
@@ -28,21 +28,8 @@ export default function VoterLogin() {
       <form onSubmit={submit} className="glass w-full max-w-md space-y-4 rounded-2xl p-6">
         <h1 className="text-2xl font-bold text-brand-primary dark:text-brand-secondary">Voter Login</h1>
         <p className="text-sm text-slate-500 dark:text-slate-300">
-          Enter your voter ID and email exactly as assigned by the administrator.
+          Enter your email exactly as assigned by the administrator.
         </p>
-        <div>
-          <label htmlFor="voter-login-id" className="field-label">
-            ID Number
-          </label>
-          <input
-            id="voter-login-id"
-            className="input"
-            placeholder="ID Number"
-            required
-            value={form.idno}
-            onChange={(e) => setForm({ ...form, idno: e.target.value })}
-          />
-        </div>
         <div>
           <label htmlFor="voter-login-email" className="field-label">
             Email

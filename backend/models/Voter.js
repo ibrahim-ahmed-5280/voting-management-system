@@ -11,9 +11,8 @@ const votedElectionSchema = new mongoose.Schema(
 
 const voterSchema = new mongoose.Schema(
   {
-    idno: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     role: { type: String, enum: ["voter"], default: "voter" },
     phone: { type: String, required: true, trim: true },
     assignedElections: [{ type: mongoose.Schema.Types.ObjectId, ref: "Election" }],

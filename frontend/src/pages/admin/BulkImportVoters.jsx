@@ -45,7 +45,7 @@ export default function BulkImportVoters() {
         <a className="btn border border-slate-300" href="/api/voter/template/download">
           Download Template
         </a>
-        <p className="text-sm text-slate-500">Template columns: <strong>idno, name, email, phone</strong></p>
+        <p className="text-sm text-slate-500">Template columns: <strong>name, email, phone</strong></p>
         <div>
           <label className="field-label">Assign Election(s)</label>
           <select

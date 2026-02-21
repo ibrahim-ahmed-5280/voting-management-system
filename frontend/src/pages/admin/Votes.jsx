@@ -59,7 +59,7 @@ export default function Votes() {
         </select>
         <input className="input" type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
         <input className="input" type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
-        <input className="input" placeholder="Voter ID or name" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+        <input className="input" placeholder="Voter email or name" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <div className="md:col-span-4 flex gap-2">
           <button className="btn-primary" onClick={load}>
             <FaFilter />
@@ -91,7 +91,7 @@ export default function Votes() {
                 <tr key={vote._id} className="border-t border-slate-200">
                   <td className="py-2">
                     <p className="font-semibold">{vote.voter?.name}</p>
-                    <p className="font-mono text-xs text-slate-500">{vote.voter?.idno}</p>
+                    <p className="text-xs text-slate-500">{vote.voter?.email}</p>
                   </td>
                   <td>{vote.election?.name}</td>
                   <td>{vote.candidate?.name}</td>
